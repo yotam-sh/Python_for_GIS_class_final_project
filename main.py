@@ -113,15 +113,16 @@ parent_dir = arcpy.env.workspace = path
 
 for child in arcpy.Describe(parent_dir).children:
     if child.name[:-4] in child.path:
+        f_shape = arcpy.Describe(child).shapeType
         for child in arcpy.Describe(f'{parent_dir}\\{gdb_name}').children:
-        if f_shape == "Point":
-            min_fields = 2
-            with arcpy.da.InsertCursor()
-        elif file_shapetype == "Polygon":
-            area_limit = 500
-        elif file_shapetype == "Polyline":
-            min_length = 10
-            max_length = 500
+            if f_shape == "Point":
+                min_fields = 2
+                with arcpy.da.InsertCursor()
+            elif f_shape == "Polygon":
+                area_limit = 500
+            elif f_shape == "Polyline":
+                min_length = 10
+                max_length = 500
             
     else:
         pass
