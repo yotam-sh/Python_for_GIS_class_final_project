@@ -23,13 +23,13 @@ arcpy.env.overwriteOutput = True
 
 # Get all user parameteres
 path = r'C:\Users\user\Desktop\PythonForUni\Final_project\testing_parent' #arcpy.GetParameterAsText(0) # get parent dir
-try:
-    work_area_parameter = arcpy.GetParameterAsText(1) # Polygonal layer 
-    p1_desc = arcpy.Describe(work_area_parameter)
-    if p1_desc.shapeType != "Polygon":
-        raise TypeError
-except TypeError:
-    arcpy.AddError('A polygonal layer must be used for the work area parameter!')
+# try:
+#     work_area_parameter = arcpy.GetParameterAsText(1) # Polygonal layer 
+#     p1_desc = arcpy.Describe(work_area_parameter)
+#     if p1_desc.shapeType != "Polygon":
+#         raise TypeError
+# except TypeError:
+#     arcpy.AddError('A polygonal layer must be used for the work area parameter!')
 
 parent_dir = arcpy.env.workspace = path
 parent_desc = arcpy.Describe(parent_dir)
@@ -39,7 +39,7 @@ parent_desc = arcpy.Describe(parent_dir)
 ###
 
 # Create a new geodatabase with the name of the parent folder
-new_gdb = arcpy.management.CreateFileGDB(path, parent_desc.name)
+# new_gdb = arcpy.management.CreateFileGDB(path, parent_desc.name)
 
 # Dictionary to hold every layer's name and path
 layer_dict = dict()
@@ -101,28 +101,41 @@ for child_dir in arcpy.ListFiles():
             
         split_dir_name = sys_path.split('\\')
         new_fname = f'{split_dir_name[-1]}_{child_fdesc.name[:-4]}'
-        new_fc = arcpy.management.CreateFeatureclass(new_gdb, new_fname, f_shape, template=file, spatial_reference=file)
+        # new_fc = arcpy.management.CreateFeatureclass(new_gdb, new_fname, f_shape, template=file, spatial_reference=file)
 
-for k, v_list in layer_dict.items():
-    for v in v_list:
-        k_split = k.split('\\')
-        print(f'City: {k_split[-1]}\t| Layer name: {v}')
+# # Show dict items sorted by "CITY: {} | LAYER NAME: {}"
+# for k, v_list in layer_dict.items():
+#     for v in v_list:
+#         k_split = k.split('\\')
+#         print(f'City: {k_split[-1]}\t| Layer name: {v}')
             
 # reset workspace to initial workspace
 parent_dir = arcpy.env.workspace = path
 
-for child in arcpy.Describe(parent_dir).children:
-    if child.name[:-4] in child.path:
-        for child in arcpy.Describe(f'{parent_dir}\\{gdb_name}').children:
-        if f_shape == "Point":
-            min_fields = 2
-            with arcpy.da.InsertCursor()
-        elif file_shapetype == "Polygon":
-            area_limit = 500
-        elif file_shapetype == "Polyline":
-            min_length = 10
-            max_length = 500
-            
-    else:
-        pass
+# Iterate over all featureclasses in the created gdb
+for fc in arcpy.Describe(new_gdb).children:
     
+    # Describe each featureclass in each iteration
+    fc_path = f'{arcpy.Describe(new_gdb).name}\\{fc.name}'
+    fc_desc = arcpy.Describe(fc_path)
+    fc_shape = fc_desc.shapeType
+    fc_name = fc_desc.name
+    
+    # Iterate over the created dictionary to match each fc with its counterpart .shp
+    for k, v in layer_dict.items():
+        for f in v: # f is feature
+            key_split = k.split('\\')
+            shp_name = f'{key_split[-1]}_{f[:-4]}'
+            
+            if shp_name == fc_name:
+                shp_path = f'{k}\\{f}'
+            
+                # Append the .shp to the featureclass with a specific expression to each shape type
+                if fc_shape == 'Point':
+                    sql = 'number <> 0 And height <> 0 And apartments <> 0'
+                elif fc_shape == 'Polyline':
+                    sql = "(st_name IS NOT NULL And st_name <> ' ') And (LENGTH > 10 And LENGTH < 500)"
+                elif fc_shape == 'Polygon':
+                    sql = 'number <> 0'
+                    
+                arcpy.management.Append(shp_path, fc_path, schema_type='TEST_AND_SKIP', expression=sql)
