@@ -141,3 +141,10 @@ for fc in arcpy.Describe(new_gdb).children:
                     sql = 'number <> 0'
                     
                 arcpy.management.Append(shp_path, fc_path, schema_type='TEST_AND_SKIP', expression=sql)
+
+""" stage 4 - spatial join"""
+
+# In this stage I need to add:
+# spatial join between the blocks layer and the buildings layer and insert an attribute to the "new_number" field
+# The field will be made using the block's number and the building's number in the following format:
+# XXXX#YYYY --> X represents the block number and Y represents the buildings number. They are separated by a '#'
