@@ -39,7 +39,7 @@ parent_desc = arcpy.Describe(parent_dir)
 ###
 
 # Create a new geodatabase with the name of the parent folder
-# new_gdb = arcpy.management.CreateFileGDB(path, parent_desc.name)
+new_gdb = arcpy.management.CreateFileGDB(path, parent_desc.name)
 
 # Dictionary to hold every layer's name and path
 layer_dict = dict()
@@ -101,7 +101,7 @@ for child_dir in arcpy.ListFiles():
             
         split_dir_name = sys_path.split('\\')
         new_fname = f'{split_dir_name[-1]}_{child_fdesc.name[:-4]}'
-        # new_fc = arcpy.management.CreateFeatureclass(new_gdb, new_fname, f_shape, template=file, spatial_reference=file)
+        new_fc = arcpy.management.CreateFeatureclass(new_gdb, new_fname, f_shape, template=file, spatial_reference=file)
 
 # # Show dict items sorted by "CITY: {} | LAYER NAME: {}"
 # for k, v_list in layer_dict.items():
