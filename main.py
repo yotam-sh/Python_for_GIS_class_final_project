@@ -126,12 +126,16 @@ for fc in arcpy.Describe(new_gdb).children:
     # Iterate over the created dictionary to match each fc with its counterpart .shp
     for k, v in layer_dict.items():
         for f in v: # f is feature
+            
+            # Describe the shapefile in order to compare it to the featureclass
             key_split = k.split('\\')
+            shp_path = f'{k}\\{f}'
+            shp_desc = arcpy.Describe(shp_path)
             shp_name = f'{key_split[-1]}_{f[:-4]}'
+            shp_shape = shp_desc.shapeType
             
-            if shp_name == fc_name:
-                shp_path = f'{k}\\{f}'
-            
+            if shp_name == fc_name and fc_shape == shp_shape:
+                
                 # Append the .shp to the featureclass with a specific expression to each shape type
                 if fc_shape == 'Point':
                     sql = 'number <> 0 And height <> 0 And apartments <> 0'
