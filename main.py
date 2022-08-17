@@ -112,32 +112,30 @@ for child_dir in arcpy.ListFiles():
 # reset workspace to initial workspace
 parent_dir = arcpy.env.workspace = path
 
-for child in arcpy.Describe(parent_dir).children:
-    if child.name[:-4] in child.path:
-        for fc in arcpy.Describe(f'{child.path}\\{child.name}').children:
-            fc_path = f'{child.path}\\{child.name}\\{fc.name}'
-            print(fc_path)
-            fc_desc = arcpy.Describe(fc_path)
-            fc_shape = fc_desc.shapeType
-            fc_name = fc_desc.name
-            for k, v in layer_dict.items():
-                for l in v:
-                    key_split = k.split('\\')
-                    shp_name = f'{key_split[-1]}_{l[:-4]}'
-                    if shp_name == fc_name:
-                        shp_path = f'{k}\\{l}'
-                        print(shp_path)
-                        if fc_shape == "Point":
-                            min_fields = 2
-                            fields = ['number', 'new_number', 'POINT_X', 'POINT_Y', 'height', 'apartments']
-#                             with arcpy.da.InsertCursor(fc_path, fields) as cursor:
-#                             with arcpy.da.InsertCursor(shp_path, )
-                        elif fc_shape == "Polygon":
-                            area_limit = 500
-                        elif fc_shape == "Polyline":
-                            min_length = 10
-                            max_length = 500
-            
-    else:
-        pass
+# Iterate over all featureclasses in the created gdb
+for fc in arcpy.Describe(new_gdb).children:
     
+    # Describe each featureclass in each iteration
+    fc_path = f'{arcpy.Describe(new_gdb).name}\\{fc.name}'
+    fc_desc = arcpy.Describe(fc_path)
+    fc_shape = fc_desc.shapeType
+    fc_name = fc_desc.name
+    
+    # Iterate over the created dictionary to match each fc with its counterpart .shp
+    for k, v in layer_dict.items():
+        for f in v: # f is feature
+            key_split = k.split('\\')
+            shp_name = f'{key_split[-1]}_{f[:-4]}'
+            
+            if shp_name == fc_name:
+                shp_path = f'{k}\\{f}'
+            
+                # Append the .shp to the featureclass with a specific expression to each shape type
+                if fc_shape == 'Point':
+                    sql = 'number <> 0 And height <> 0 And apartments <> 0'
+                elif fc_shape == 'Polyline':
+                    sql = "(st_name IS NOT NULL And st_name <> ' ') And (LENGTH > 10 And LENGTH < 500)"
+                elif fc_shape == 'Polygon':
+                    sql = 'number <> 0'
+                    
+                arcpy.management.Append(shp_path, fc_path, schema_type='TEST_AND_SKIP', expression=sql)
