@@ -1,23 +1,23 @@
-##### This script was written by Yotam Shavit
+"""This script was written by Yotam Shavit
 
-### The script was written for repetitive data conversion tasks for a friend.
-### The data input is always the same - municipal data that includes the following layers;
-### roads-polyline # buildings-point # blocks-polygon
-###
-### What the script essentially does is as follows:
-### 1. Evaluates the data for incompleteness, meaning that any feature without complete attributes will not be valid
-### 2. Adding geometry attributes to the road layer, calculating road feature part lengths
-### 3. Creating a database and transferring all data to it, combining data from different folders into one workspace
-### 4. Renaming featureclass layers according to their containing folder and original name
-### 5. Cutting all data outside of an AOI polygon supplied by the user
+The script was written for repetitive data conversion tasks for a friend.
+The data input is always the same - municipal data that includes the following layers;
+roads-polyline # buildings-point # blocks-polygon
 
-# imports
+What the script essentially does is as follows:
+1. Evaluates the data for incompleteness, meaning that any feature without complete attributes will not be valid
+2. Adding geometry attributes to the road layer, calculating road feature part lengths
+3. Creating a database and transferring all data to it, combining data from different folders into one workspace
+4. Renaming featureclass layers according to their containing folder and original name
+5. Cutting all data outside of an AOI polygon supplied by the user"""
+
+
+"""imports"""
 import arcpy
 import os
 
-###
-### stage 1 - getting user parameters and setting the script's environment
-###
+
+"""stage 1 - getting user parameters and setting the script's environment"""
 
 arcpy.env.overwriteOutput = True
 
@@ -34,9 +34,8 @@ path = r'C:\Users\user\Desktop\PythonForUni\Final_project\testing_parent' #arcpy
 parent_dir = arcpy.env.workspace = path
 parent_desc = arcpy.Describe(parent_dir)
 
-###
-### stage 2 - create work gdb, start analyzing the data
-###
+
+"""stage 2 - create work gdb, start analyzing the data"""
 
 # Create a new geodatabase with the name of the parent folder
 new_gdb = arcpy.management.CreateFileGDB(path, parent_desc.name)
@@ -108,7 +107,10 @@ for child_dir in arcpy.ListFiles():
 #     for v in v_list:
 #         k_split = k.split('\\')
 #         print(f'City: {k_split[-1]}\t| Layer name: {v}')
-            
+
+
+"""stage 3 - append features from .shp files to featureclasses"""
+
 # reset workspace to initial workspace
 parent_dir = arcpy.env.workspace = path
 
