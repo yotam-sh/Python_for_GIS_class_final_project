@@ -1,4 +1,5 @@
-"""This script was written by Yotam Shavit
+"""
+This script was written by Yotam Shavit
 
 The script was written for repetitive data conversion tasks for a friend.
 The data input is always the same - municipal data that includes the following layers;
@@ -12,11 +13,11 @@ What the script essentially does is as follows:
 5. Cutting all data outside of an AOI polygon supplied by the user"""
 
 
-"""imports"""
+""" imports """
 import arcpy
 
 
-"""stage 1 - getting user parameters and setting the script's environment"""
+""" stage 1 - getting user parameters and setting the script's environment """
 
 arcpy.env.overwriteOutput = True
 
@@ -28,7 +29,7 @@ parent_dir = arcpy.env.workspace = path
 parent_desc = arcpy.Describe(parent_dir)
 
 
-"""stage 2 - create work gdb, start analyzing the data"""
+""" stage 2 - create work gdb, start analyzing the data """
 
 # Create a new geodatabase with the name of the parent folder
 try:
@@ -139,7 +140,7 @@ for child_dir in arcpy.ListFiles():
 #         print(f'City: {k_split[-1]}\t| Layer name: {v}')
 
 
-"""stage 3 - append features from .shp files to featureclasses"""
+""" stage 3 - append features from .shp files to featureclasses """
 
 # reset workspace to initial workspace
 parent_dir = arcpy.env.workspace = path
@@ -188,8 +189,9 @@ else:
     print('Successfully appended all data from shapefiles to featureclasses')
         
 
-""" stage 4 - spatial join"""
+""" stage 4 - spatial join data prep """
 
+# Loop through the featureclass list of the created gdb to remove the polyline layers
 for fc_index in range(len(gdb_children), -1, -1):
     index = fc_index - 1
     if arcpy.Describe(gdb_children[index].name).shapeType == 'Polyline':
@@ -199,7 +201,7 @@ for fc_index in range(len(gdb_children), -1, -1):
             print(e)
 
 
-
+""" stage 5 - spatial join execution """
 
 # In this stage I need to add:
 # spatial join between the blocks layer and the buildings layer and insert an attribute to the "new_number" field
