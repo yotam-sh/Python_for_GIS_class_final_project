@@ -23,13 +23,7 @@ arcpy.env.overwriteOutput = True
 
 # Get all user parameteres
 path = r'C:\Users\user\Desktop\PythonForUni\Final_project\testing_parent' #arcpy.GetParameterAsText(0) # get parent dir
-# try:
-#     work_area_parameter = arcpy.GetParameterAsText(1) # Polygonal layer 
-#     p1_desc = arcpy.Describe(work_area_parameter)
-#     if p1_desc.shapeType != "Polygon":
-#         raise TypeError
-# except TypeError:
-#     arcpy.AddError('A polygonal layer must be used for the work area parameter!')
+gdb_out_path = path #arcpy.GetParameterAsText(1)
 
 parent_dir = arcpy.env.workspace = path
 parent_desc = arcpy.Describe(parent_dir)
@@ -62,32 +56,49 @@ for child_dir in arcpy.ListFiles():
         # Loop through all .shp files and find polyline layers to add geometry values to
         child_fdesc = arcpy.Describe(file)
         f_shape = child_fdesc.shapeType
+        f_name = child_fdesc.name
         
         # Add geometry attributes and round all values
         if f_shape == 'Polyline':
-            arcpy.management.AddGeometryAttributes(file, 'LENGTH', 'METERS')
-            with arcpy.da.UpdateCursor(file, ['LENGTH']) as cursor:
-                for feature in cursor:
-                    rounded_length = int(feature[0])
-                    feature[0] = rounded_length
-                    cursor.updateRow(feature)
+            try:
+                arcpy.management.AddGeometryAttributes(file, 'LENGTH', 'METERS')
+                with arcpy.da.UpdateCursor(file, ['LENGTH']) as cursor:
+                    for feature in cursor:
+                        rounded_length = int(feature[0])
+                        feature[0] = rounded_length
+                        cursor.updateRow(feature)
+            except Exception:
+                print(f'An error has occured in adding geometry values to {f_name}')
+            else:
+                print(f'Succcessfully added geometry values to {f_name}')
         elif f_shape == 'Point':
-            arcpy.management.AddGeometryAttributes(file, 'POINT_X_Y_Z_M')
-            arcpy.management.AddField(file, 'new_number', 'TEXT')
-            with arcpy.da.UpdateCursor(file, ['POINT_X', 'POINT_Y']) as cursor:
-                for feature in cursor:
-                    rounded_x = int(feature[0])
-                    rounded_y = int(feature[1])
-                    feature[0] = rounded_x
-                    feature[1] = rounded_y
-                    cursor.updateRow(feature)
+            try:
+                arcpy.management.AddGeometryAttributes(file, 'POINT_X_Y_Z_M')
+                arcpy.management.AddField(file, 'new_number', 'TEXT')
+                with arcpy.da.UpdateCursor(file, ['POINT_X', 'POINT_Y']) as cursor:
+                    for feature in cursor:
+                        rounded_x = int(feature[0])
+                        rounded_y = int(feature[1])
+                        feature[0] = rounded_x
+                        feature[1] = rounded_y
+                        cursor.updateRow(feature)
+            except Exception:
+                print(f'An error has occured in adding geometry values to {f_name}')
+            else:
+                print(f'Succcessfully added geometry values to {f_name}')
+                print(f'Succcessfully added "new_number" field to {f_name}')
         elif f_shape == 'Polygon':
-            arcpy.management.AddGeometryAttributes(file, 'AREA', Area_Unit='SQUARE_METERS')
-            with arcpy.da.UpdateCursor(file, ['POLY_AREA']) as cursor:
-                for feature in cursor:
-                    rounded_area = int(feature[0])
-                    feature[0] = rounded_area
-                    cursor.updateRow(feature)
+            try:
+                arcpy.management.AddGeometryAttributes(file, 'AREA', Area_Unit='SQUARE_METERS')
+                with arcpy.da.UpdateCursor(file, ['POLY_AREA']) as cursor:
+                    for feature in cursor:
+                        rounded_area = int(feature[0])
+                        feature[0] = rounded_area
+                        cursor.updateRow(feature)
+            except Exception:
+                print(f'An error has occured in adding geometry values to {f_name}')
+            else:
+                print(f'Succcessfully added geometry values to {f_name}')
         
         # Get parameters and create a new FC from the current file template
         sys_path = os.path.dirname(file)
