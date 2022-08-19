@@ -194,7 +194,7 @@ else:
 # Loop through the featureclass list of the created gdb to remove the polyline layers
 for fc_index in range(len(gdb_children), -1, -1):
     index = fc_index - 1
-    if arcpy.Describe(gdb_children[index].name).shapeType == 'Polyline':
+    if gdb_children[index].shapeType == 'Polyline':
         try:
             gdb_children.pop(index)
         except Exception as e:
@@ -202,6 +202,54 @@ for fc_index in range(len(gdb_children), -1, -1):
 
 
 """ stage 5 - spatial join execution """
+
+index = 0
+for i in range(len(gdb_children) // 2):
+    if index == 0 :
+        i = index
+    else:
+        index += 1
+        i = index
+    fc_name_split = gdb_children[i].name.split('_')
+    if len(fc_name_split) > 2:
+        layer_name = fc_name_split[-1]
+        fc_name_split.pop(-1)
+        city_name = '_'.join(fc_name_split)
+        for j in gdb_children:
+            if city_name in j.name:
+                if f'{city_name}_{layer_name}' == j.name:
+                    pass
+                else:
+                    matching_layer = j.name
+        
+    # Execute spatial join
+    for layer in [f'{city_name}_{layer_name}', j.name]:
+        if 'buildings' in layer.lower():
+            buildings = layer
+        elif 'blocks' in layer.lower():
+            blocks = layer
+            
+    with arcpy.da.UpdateCursor(blocks, 'number') as cursor:
+        for block in cursor:
+            sql_clause = f'number = {block[0]}'
+            arcpy.management.SelectLayerByAttribute(blocks, 'NEW_SELECTION', where_clause=sql_clause)
+            sj = arcpy.analysis.SpatialJoin(blocks, buildings, 'in_memory/sj', match_option='INTERSECT')
+            
+            with arcpy.da.SearchCursor(sj, "*") as subcursor:
+                field_list = arcpy.Describe(sj).fields
+                for field in field_list:
+                    print(field.name)
+                print('\t')
+#                     if 'bnumber' in field.name:
+#                         for building in subcursor:
+#                             print(f'{building[0]}\t{building[field_index]}')
+#                     else:
+#                         break
+                    
+        
+    index += 1    
+
+
 
 # In this stage I need to add:
 # spatial join between the blocks layer and the buildings layer and insert an attribute to the "new_number" field
