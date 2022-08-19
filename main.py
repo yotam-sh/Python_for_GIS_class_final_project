@@ -31,7 +31,12 @@ parent_desc = arcpy.Describe(parent_dir)
 """stage 2 - create work gdb, start analyzing the data"""
 
 # Create a new geodatabase with the name of the parent folder
-new_gdb = arcpy.management.CreateFileGDB(path, parent_desc.name)
+try:
+    new_gdb = arcpy.management.CreateFileGDB(path, parent_desc.name)
+except Exception as e:
+    print(f'An error has occured while trying to create a GDB. Error code: {e}')
+else:
+    print('Created GDB successfully')
 
 # Dictionary to hold every layer's name and path
 layer_dict = dict()
@@ -140,38 +145,61 @@ for child_dir in arcpy.ListFiles():
 parent_dir = arcpy.env.workspace = path
 
 # Iterate over all featureclasses in the created gdb
-for fc in arcpy.Describe(new_gdb).children:
-    
-    # Describe each featureclass in each iteration
-    fc_path = f'{arcpy.Describe(new_gdb).name}\\{fc.name}'
-    fc_desc = arcpy.Describe(fc_path)
-    fc_shape = fc_desc.shapeType
-    fc_name = fc_desc.name
-    
-    # Iterate over the created dictionary to match each fc with its counterpart .shp
-    for k, v in layer_dict.items():
-        for f in v: # f is feature
-            
-            # Describe the shapefile in order to compare it to the featureclass
-            key_split = k.split('\\')
-            shp_path = f'{k}\\{f}'
-            shp_desc = arcpy.Describe(shp_path)
-            shp_name = f'{key_split[-1]}_{f[:-4]}'
-            shp_shape = shp_desc.shapeType
-            
-            if shp_name == fc_name and fc_shape == shp_shape:
+try:
+    gdb_children = arcpy.Describe(new_gdb).children
+    for fc in gdb_children:
+        
+        # Describe each featureclass in each iteration
+        fc_path = f'{arcpy.Describe(new_gdb).name}\\{fc.name}'
+        fc_desc = arcpy.Describe(fc_path)
+        fc_shape = fc_desc.shapeType
+        fc_name = fc_desc.name
+        
+        # Iterate over the created dictionary to match each fc with its counterpart .shp
+        for k, v in layer_dict.items():
+            for f in v: # f is feature
                 
-                # Append the .shp to the featureclass with a specific expression to each shape type
-                if fc_shape == 'Point':
-                    sql = 'number <> 0 And height <> 0 And apartments <> 0'
-                elif fc_shape == 'Polyline':
-                    sql = "(st_name IS NOT NULL And st_name <> ' ') And (LENGTH > 10 And LENGTH < 500)"
-                elif fc_shape == 'Polygon':
-                    sql = 'number <> 0'
+                # Describe the shapefile in order to compare it to the featureclass
+                key_split = k.split('\\')
+                shp_path = f'{k}\\{f}'
+                shp_desc = arcpy.Describe(shp_path)
+                shp_name = f'{key_split[-1]}_{f[:-4]}'
+                shp_shape = shp_desc.shapeType
+                
+                if shp_name == fc_name and fc_shape == shp_shape:
                     
-                arcpy.management.Append(shp_path, fc_path, schema_type='TEST_AND_SKIP', expression=sql)
+                    # Append the .shp to the featureclass with a specific expression to each shape type
+                    if fc_shape == 'Point':
+                        sql = 'number <> 0 And height <> 0 And apartments <> 0'
+                    elif fc_shape == 'Polyline':
+                        sql = "(st_name IS NOT NULL And st_name <> ' ') And (LENGTH > 10 And LENGTH < 500)"
+                    elif fc_shape == 'Polygon':
+                        sql = 'number <> 0'
+                        
+                    arcpy.management.Append(shp_path, fc_path, schema_type='TEST_AND_SKIP', expression=sql)
+except Exception as e:
+    print(
+        f"""An error has occured during data transfer between the shapefile to the matching featureclass.
+        Please check active data queries on layers.
+        Error code: {e} | Shapefile: {shp_name} | Featureclass: {fc_name}"""
+        )
+    exit()
+else:
+    print('Successfully appended all data from shapefiles to featureclasses')
+        
 
 """ stage 4 - spatial join"""
+
+for fc_index in range(len(gdb_children), -1, -1):
+    index = fc_index - 1
+    if arcpy.Describe(gdb_children[index].name).shapeType == 'Polyline':
+        try:
+            gdb_children.pop(index)
+        except Exception as e:
+            print(e)
+
+
+
 
 # In this stage I need to add:
 # spatial join between the blocks layer and the buildings layer and insert an attribute to the "new_number" field
