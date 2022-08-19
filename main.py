@@ -14,7 +14,6 @@ What the script essentially does is as follows:
 
 """imports"""
 import arcpy
-import os
 
 
 """stage 1 - getting user parameters and setting the script's environment"""
@@ -46,11 +45,20 @@ for child_dir in arcpy.ListFiles():
     
     # Find .shp files and add them to a list
     child_files = list()
-    child_walk = arcpy.da.Walk(new_path, datatype="FeatureClass", type=("Polygon", "Polyline", "Point"))
-    for dirpath, dirnames, filenames in child_walk:
-        for filename in filenames:
-            if filename.endswith(".shp"):
-                child_files.append(rf'{dirpath}\{filename}')
+    try:
+        child_walk = arcpy.da.Walk(new_path, datatype="FeatureClass", type=("Polygon", "Polyline", "Point"))
+        for dirpath, dirnames, filenames in child_walk:
+            for filename in filenames:
+                if filename.endswith(".shp"):
+                    child_files.append(rf'{dirpath}\{filename}')
+    except Exception as e:
+        print(
+            """An error has occured during the search for shapefiles in the parent folder.
+            please check the input path for the parent folder. Error code: {e}"""
+            )
+        break
+    else:
+        print('Successfully found shapefile(s)')
             
     for file in child_files:
         # Loop through all .shp files and find polyline layers to add geometry values to
@@ -67,8 +75,8 @@ for child_dir in arcpy.ListFiles():
                         rounded_length = int(feature[0])
                         feature[0] = rounded_length
                         cursor.updateRow(feature)
-            except Exception:
-                print(f'An error has occured in adding geometry values to {f_name}')
+            except Exception as e:
+                print(f'An error has occured in adding geometry values to {f_name}. Error code: {e}')
             else:
                 print(f'Succcessfully added geometry values to {f_name}')
         elif f_shape == 'Point':
@@ -82,8 +90,8 @@ for child_dir in arcpy.ListFiles():
                         feature[0] = rounded_x
                         feature[1] = rounded_y
                         cursor.updateRow(feature)
-            except Exception:
-                print(f'An error has occured in adding geometry values to {f_name}')
+            except Exception as e:
+                print(f'An error has occured in adding geometry values to {f_name}. Error code: {e}')
             else:
                 print(f'Succcessfully added geometry values to {f_name}')
                 print(f'Succcessfully added "new_number" field to {f_name}')
@@ -95,13 +103,13 @@ for child_dir in arcpy.ListFiles():
                         rounded_area = int(feature[0])
                         feature[0] = rounded_area
                         cursor.updateRow(feature)
-            except Exception:
-                print(f'An error has occured in adding geometry values to {f_name}')
+            except Exception as e:
+                print(f'An error has occured in adding geometry values to {f_name}. Error code: {e}')
             else:
                 print(f'Succcessfully added geometry values to {f_name}')
         
-        # Get parameters and create a new FC from the current file template
-        sys_path = os.path.dirname(file)
+        # Get shapefile path parameter and create a new FC from the current file template
+        sys_path = child_fdesc.path
         
         # Add path and layer names to dict
         if sys_path in layer_dict:
@@ -111,7 +119,13 @@ for child_dir in arcpy.ListFiles():
             
         split_dir_name = sys_path.split('\\')
         new_fname = f'{split_dir_name[-1]}_{child_fdesc.name[:-4]}'
-        new_fc = arcpy.management.CreateFeatureclass(new_gdb, new_fname, f_shape, template=file, spatial_reference=file)
+        try:
+            new_fc = arcpy.management.CreateFeatureclass(new_gdb, new_fname, f_shape, template=file, spatial_reference=file)
+        except Exception as e:
+            print(
+                f"""The following error has occured during the creation of {new_fname} featureclass: {e}
+                Please try rerunning the process after checking for possible error causes."""
+                )
 
 # # Show dict items sorted by "CITY: {} | LAYER NAME: {}"
 # for k, v_list in layer_dict.items():
