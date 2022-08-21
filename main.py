@@ -27,10 +27,10 @@ time1 = process_time()
 
 arcpy.env.overwriteOutput = True
 
-# Get all user parameteres
-path = arcpy.GetParameterAsText(0) # get parent dir
-gdb_out_path = arcpy.GetParameterAsText(1)
+# Get user parameter for parent-folder
+path = arcpy.GetParameterAsText(0)
 
+# Set user defined path as workspace
 parent_dir = arcpy.env.workspace = path
 parent_desc = arcpy.Describe(parent_dir)
 
@@ -41,9 +41,9 @@ parent_desc = arcpy.Describe(parent_dir)
 try:
     new_gdb = arcpy.management.CreateFileGDB(path, parent_desc.name)
 except Exception as e:
-    print(f'An error has occured while trying to create a GDB. Error code: {e}')
+    arcpy.AddError(f'An error has occured while trying to create a GDB. Error code: {e}')
 else:
-    print('Created GDB successfully')
+    arcpy.AddMessage('Created GDB successfully')
 
 # Dictionary to hold every layer's name and path
 layer_dict = dict()
@@ -64,13 +64,13 @@ for child_dir in arcpy.ListFiles():
                 if filename.endswith(".shp"):
                     child_files.append(rf'{dirpath}\{filename}')
     except Exception as e:
-        print(
+        arcpy.AddError(
             """An error has occured during the search for shapefiles in the parent folder.
             please check the input path for the parent folder. Error code: {e}"""
             )
         break
     else:
-        print('Successfully found shapefile(s)')
+        arcpy.AddMessage('Successfully found shapefile(s)')
             
     for file in child_files:
         # Loop through all .shp files and find polyline layers to add geometry values to
@@ -88,9 +88,9 @@ for child_dir in arcpy.ListFiles():
                         feature[0] = rounded_length
                         cursor.updateRow(feature)
             except Exception as e:
-                print(f'An error has occured in adding geometry values to {f_name}. Error code: {e}')
+                arcpy.AddError(f'An error has occured in adding geometry values to {f_name}. Error code: {e}')
             else:
-                print(f'Succcessfully added geometry values to {f_name}')
+                arcpy.AddMessage(f'Succcessfully added geometry values to {f_name}')
         elif f_shape == 'Point':
             try:
                 arcpy.management.AddGeometryAttributes(file, 'POINT_X_Y_Z_M')
@@ -103,10 +103,10 @@ for child_dir in arcpy.ListFiles():
                         feature[1] = rounded_y
                         cursor.updateRow(feature)
             except Exception as e:
-                print(f'An error has occured in adding geometry values to {f_name}. Error code: {e}')
+                arcpy.AddMError(f'An error has occured in adding geometry values to {f_name}. Error code: {e}')
             else:
-                print(f'Succcessfully added geometry values to {f_name}')
-                print(f'Succcessfully added "new_number" field to {f_name}')
+                arcpy.AddMessage(f'Succcessfully added geometry values to {f_name}')
+                arcpy.AddMessage(f'Succcessfully added "new_number" field to {f_name}')
         elif f_shape == 'Polygon':
             try:
                 arcpy.management.AddGeometryAttributes(file, 'AREA', Area_Unit='SQUARE_METERS')
@@ -116,9 +116,9 @@ for child_dir in arcpy.ListFiles():
                         feature[0] = rounded_area
                         cursor.updateRow(feature)
             except Exception as e:
-                print(f'An error has occured in adding geometry values to {f_name}. Error code: {e}')
+                arcpy.AddError(f'An error has occured in adding geometry values to {f_name}. Error code: {e}')
             else:
-                print(f'Succcessfully added geometry values to {f_name}')
+                arcpy.AddMessage(f'Succcessfully added geometry values to {f_name}')
         
         # Get shapefile path parameter and create a new FC from the current file template
         sys_path = child_fdesc.path
@@ -134,7 +134,7 @@ for child_dir in arcpy.ListFiles():
         try:
             new_fc = arcpy.management.CreateFeatureclass(new_gdb, new_fname, f_shape, template=file, spatial_reference=file)
         except Exception as e:
-            print(
+            arcpy.AddError(
                 f"""The following error has occured during the creation of {new_fname} featureclass: {e}
                 Please try rerunning the process after checking for possible error causes."""
                 )
@@ -179,13 +179,13 @@ try:
                         
                     arcpy.management.Append(shp_path, fc_path, schema_type='TEST_AND_SKIP', expression=sql)
 except Exception as e:
-    print(
+    arcpy.AddError(
         f"""An error has occured during data transfer between the shapefile to the matching featureclass.
         Please check active data queries on layers.
         Error code: {e} | Shapefile: {shp_name} | Featureclass: {fc_name}"""
         )
 else:
-    print('Successfully appended all data from shapefiles to featureclasses')
+    arcpy.AddMessage('Successfully appended all data from shapefiles to featureclasses')
         
 
 """ stage 4 - spatial join data prep """
@@ -197,10 +197,13 @@ for fc_index in range(len(gdb_children), -1, -1):
         try:
             gdb_children.pop(index)
         except Exception as e:
-            print(e)
+            arcpy.AddError(e)
 
 
 """ stage 5 - spatial join execution """
+
+# Reset workspace to be the GDB
+arcpy.env.workspace = fr'{arcpy.Describe(new_gdb).path}\\{arcpy.Describe(new_gdb).name}'
 
 index = 0
 for i in range(len(gdb_children) // 2):
@@ -245,9 +248,9 @@ for i in range(len(gdb_children) // 2):
             try:
                 sj = arcpy.analysis.SpatialJoin(buildings, blocks, f'in_memory/sj_{city_name}_block{block[0]}', match_option='INTERSECT')
             except Exception as e:
-                print(f'Error while trying to spatial-join [{buildings}, {blocks}] layers, error: {e}')
+                arcpy.AddError(f'Error while trying to spatial-join [{buildings}, {blocks}] layers, error: {e}')
             else:
-                print(f'Successfully spatial-joined [{buildings}, {blocks}] layers')
+                arcpy.AddMessage(f'Successfully spatial-joined [{buildings}, {blocks}] layers')
             
             # Save building numbers of overlapping buildings with current block in selection
             sj_dict = dict()
@@ -259,16 +262,18 @@ for i in range(len(gdb_children) // 2):
                         else:
                             sj_dict[sjrow[2]] = [sjrow[0]]
             
-            with arcpy.da.UpdateCursor(buildings, ['bnumber', 'new_number']) as bcursor:
-                for k, v in sj_dict.items():
-                    for brow in bcursor:
-                        for subv in v:
-                            if brow[0] == subv:
-                                try:
-                                    # Populate 'new_number' field with building # and block #
-                                    brow[1] = f'BL{k}#{brow[0]}'
-                                except Exception as e:
-                                    print(f'Error while populating new field after spatial-join, error: {e}')
+            if sj_dict:
+                with arcpy.da.UpdateCursor(buildings, ['bnumber', 'new_number']) as bcursor:
+                    for k, v in sj_dict.items():
+                        for brow in bcursor:
+                            for subv in v:
+                                if brow[0] == subv:
+                                    try:
+                                        # Populate 'new_number' field with building # and block #
+                                        brow[1] = f'BL{k}#{brow[0]}'
+                                        bcursor.updateRow(brow)
+                                    except Exception as e:
+                                        arcpy.AddError(f'Error while populating new field after spatial-join, error: {e}')
             
             # Clear selection
             arcpy.management.SelectLayerByAttribute(blocks, 'CLEAR_SELECTION')
@@ -278,9 +283,9 @@ for i in range(len(gdb_children) // 2):
                 sj_layer_name = arcpy.Describe(sj).name
                 arcpy.Delete_management(sj)
             except Exception as e:
-                print(f'Error while deleting spatial-join layer {arcpy.Describe(sj).name}, error: {e}')
+                arcpy.AddError(f'Error while deleting spatial-join layer {arcpy.Describe(sj).name}, error: {e}')
             else:
-                print(f'Successfully deleted {sj_layer_name} layer')
+                arcpy.AddMessage(f'Successfully deleted {sj_layer_name} layer')
         
     index += 1    
 
@@ -293,4 +298,4 @@ time2 = process_time()
 # Run-time in second
 runtime = (time2-time1)
 
-print(f'The tool ran for {runtime} seconds')
+arcpy.AddMessage(f'The tool ran for {runtime} seconds')
