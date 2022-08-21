@@ -28,8 +28,8 @@ time1 = process_time()
 arcpy.env.overwriteOutput = True
 
 # Get all user parameteres
-path = r'C:\Users\user\Desktop\PythonForUni\Final_project\testing_parent' #arcpy.GetParameterAsText(0) # get parent dir
-gdb_out_path = path #arcpy.GetParameterAsText(1)
+path = arcpy.GetParameterAsText(0) # get parent dir
+gdb_out_path = arcpy.GetParameterAsText(1)
 
 parent_dir = arcpy.env.workspace = path
 parent_desc = arcpy.Describe(parent_dir)
