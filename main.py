@@ -15,6 +15,11 @@ What the script essentially does is as follows:
 
 """ imports """
 import arcpy
+from time import process_time
+
+
+# Document start time in-order to calculate Run Time
+time1 = process_time()
 
 
 """ stage 1 - getting user parameters and setting the script's environment """
@@ -171,7 +176,7 @@ try:
                     
                     # Append the .shp to the featureclass with a specific expression to each shape type
                     if fc_shape == 'Point':
-                        sql = 'number <> 0 And height <> 0 And apartments <> 0'
+                        sql = 'bnumber <> 0 And height <> 0 And apartments <> 0'
                     elif fc_shape == 'Polyline':
                         sql = "(st_name IS NOT NULL And st_name <> ' ') And (LENGTH > 10 And LENGTH < 500)"
                     elif fc_shape == 'Polygon':
@@ -184,7 +189,6 @@ except Exception as e:
         Please check active data queries on layers.
         Error code: {e} | Shapefile: {shp_name} | Featureclass: {fc_name}"""
         )
-    exit()
 else:
     print('Successfully appended all data from shapefiles to featureclasses')
         
@@ -205,53 +209,92 @@ for fc_index in range(len(gdb_children), -1, -1):
 
 index = 0
 for i in range(len(gdb_children) // 2):
+    # Define index iterations --> always // 2
     if index == 0 :
         i = index
     else:
         index += 1
         i = index
+    
+    # Get first hit city name and layer name
     fc_name_split = gdb_children[i].name.split('_')
     if len(fc_name_split) > 2:
         layer_name = fc_name_split[-1]
         fc_name_split.pop(-1)
         city_name = '_'.join(fc_name_split)
-        for j in gdb_children:
-            if city_name in j.name:
-                if f'{city_name}_{layer_name}' == j.name:
-                    pass
-                else:
-                    matching_layer = j.name
+    else:
+        city_name = fc_name_split[0]
+        layer_name = fc_name_split[1]
+    
+    # Get matching layer parameter
+    for j in gdb_children:
+        if city_name in j.name:
+            if f'{city_name}_{layer_name}' == j.name:
+                pass
+            else:
+                matching_layer = j.name
         
-    # Execute spatial join
-    for layer in [f'{city_name}_{layer_name}', j.name]:
+    
+    for layer in [f'{city_name}_{layer_name}', matching_layer]:
         if 'buildings' in layer.lower():
             buildings = layer
         elif 'blocks' in layer.lower():
             blocks = layer
             
-    with arcpy.da.UpdateCursor(blocks, 'number') as cursor:
+    # Execute spatial join
+    with arcpy.da.SearchCursor(blocks, 'number') as cursor:
         for block in cursor:
             sql_clause = f'number = {block[0]}'
             arcpy.management.SelectLayerByAttribute(blocks, 'NEW_SELECTION', where_clause=sql_clause)
-            sj = arcpy.analysis.SpatialJoin(blocks, buildings, 'in_memory/sj', match_option='INTERSECT')
             
-            with arcpy.da.SearchCursor(sj, "*") as subcursor:
-                field_list = arcpy.Describe(sj).fields
-                for field in field_list:
-                    print(field.name)
-                print('\t')
-#                     if 'bnumber' in field.name:
-#                         for building in subcursor:
-#                             print(f'{building[0]}\t{building[field_index]}')
-#                     else:
-#                         break
-                    
+            try:
+                sj = arcpy.analysis.SpatialJoin(buildings, blocks, f'in_memory/sj_{city_name}_block{block[0]}', match_option='INTERSECT')
+            except Exception as e:
+                print(f'Error while trying to spatial-join [{buildings}, {blocks}] layers, error: {e}')
+            else:
+                print(f'Successfully spatial-joined [{buildings}, {blocks}] layers')
+            
+            # Save building numbers of overlapping buildings with current block in selection
+            sj_dict = dict()
+            with arcpy.da.SearchCursor(sj, ['bnumber', 'new_number', 'number']) as sjcursor:
+                for sjrow in sjcursor:
+                    if sjrow[2] == block[0]:
+                        if sjrow[2] in sj_dict:
+                            sj_dict[sjrow[2]].append(sjrow[0])
+                        else:
+                            sj_dict[sjrow[2]] = [sjrow[0]]
+            
+            with arcpy.da.UpdateCursor(buildings, ['bnumber', 'new_number']) as bcursor:
+                for k, v in sj_dict.items():
+                    for brow in bcursor:
+                        for subv in v:
+                            if brow[0] == subv:
+                                try:
+                                    # Populate 'new_number' field with building # and block #
+                                    brow[1] = f'BL{k}#{brow[0]}'
+                                except Exception as e:
+                                    print(f'Error while populating new field after spatial-join, error: {e}')
+            
+            # Clear selection
+            arcpy.management.SelectLayerByAttribute(blocks, 'CLEAR_SELECTION')
+            
+            # Delete spatial-join memory layer
+            try:
+                sj_layer_name = arcpy.Describe(sj).name
+                arcpy.Delete_management(sj)
+            except Exception as e:
+                print(f'Error while deleting spatial-join layer {arcpy.Describe(sj).name}, error: {e}')
+            else:
+                print(f'Successfully deleted {sj_layer_name} layer')
         
     index += 1    
 
+""" stage 6 - end stage """
 
+# End-time variable
+time2 = process_time()
 
-# In this stage I need to add:
-# spatial join between the blocks layer and the buildings layer and insert an attribute to the "new_number" field
-# The field will be made using the block's number and the building's number in the following format:
-# XXXX#YYYY --> X represents the block number and Y represents the buildings number. They are separated by a '#'
+# Run-time in second
+runtime = (time2-time1)
+
+print(f'The tool ran for {runtime} seconds')
