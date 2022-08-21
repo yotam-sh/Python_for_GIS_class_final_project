@@ -139,12 +139,6 @@ for child_dir in arcpy.ListFiles():
                 Please try rerunning the process after checking for possible error causes."""
                 )
 
-# # Show dict items sorted by "CITY: {} | LAYER NAME: {}"
-# for k, v_list in layer_dict.items():
-#     for v in v_list:
-#         k_split = k.split('\\')
-#         print(f'City: {k_split[-1]}\t| Layer name: {v}')
-
 
 """ stage 3 - append features from .shp files to featureclasses """
 
@@ -289,6 +283,7 @@ for i in range(len(gdb_children) // 2):
                 print(f'Successfully deleted {sj_layer_name} layer')
         
     index += 1    
+
 
 """ stage 6 - end stage """
 
